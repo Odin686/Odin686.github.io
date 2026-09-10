@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vizancia Privacy Policy</title>
+    <style>
+        :root {
+            --primary: #6C5CE7;
+            --bg: #F8F9FE;
+            --text: #2D3436;
+            --muted: #636E72;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        h1 {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        p,
+        li {
+            color: var(--muted);
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        ul {
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #6C5CE7, #00CEC9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #E8F5E9;
+            color: #2E7D32;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧠 Vizancia</h1>
+        <p class="subtitle">Privacy Policy - Last updated: September 5, 2026</p>
+        <span class="badge">🔒 No accounts. No ads. No tracking.</span>
+
+        <h2>Overview</h2>
+        <p>Vizancia is an offline-first educational app that teaches Artificial Intelligence concepts through
+            interactive lessons and mini-games. <strong class="highlight">We run no servers, show no ads, and use no
+                analytics.</strong> Your learning records are stored locally and are not sent to Vizancia automatically.</p>
+
+        <h2>What Vizancia Does Not Do</h2>
+        <p>The core app does not automatically collect or transmit your learning records. Specifically:</p>
+        <ul>
+            <li>No account creation or login required</li>
+            <li>No automatic collection of email addresses or contact information</li>
+            <li>No location data, device identifiers, or usage analytics</li>
+            <li>No cookies, tracking pixels, or advertising identifiers</li>
+            <li>No third-party analytics, advertising, or data collection SDKs</li>
+            <li>No advertising data sales or automatic sharing of learning records</li>
+        </ul>
+
+        <h2>Data Stored on Your Device</h2>
+        <p>Vizancia stores your learning progress locally on your device using Apple's SwiftData framework. This
+            includes:</p>
+        <ul>
+            <li>Your optional nickname and selected grade band</li>
+            <li>Lesson completion progress and scores</li>
+            <li>Saved class-period lesson and exit-ticket results</li>
+            <li>XP earned, level, and streak data</li>
+            <li>Achievement unlock status</li>
+            <li>App preferences and settings</li>
+            <li>Optional beta feedback you choose inside the app</li>
+            <li>AI Passport reflection text, choices, dates, and dated follow-ups</li>
+        </ul>
+        <p>The core app does not send these records to Vizancia. Anyone with access to this device may be able to view its local profile. Bot opponents are simulated locally; no duel answers or scores are transmitted.</p>
+
+        <h2>AI Passport and Classroom Mode</h2>
+        <p>Personal AI Passport entries are saved in your local profile. They are not graded, sent to an AI service,
+            or included in beta feedback reports. Do not write names or sensitive details. Anyone using the device
+            may be able to read the personal passport. Classroom Mode uses a separate temporary store held in memory.
+            Its session work clears when the session ends, the timer expires, the app backgrounds, or the app restarts.
+            The personal profile stays separate. An adult gate helps prevent accidental exits; it is not a password
+            or a substitute for supervision.</p>
+
+        <h2>Saved Learners, Reports, and Projects</h2>
+        <p>Local learner profiles separate progress and Passport entries, but have no passwords: anyone using the app can switch profiles and read them. Use nicknames and temporary Classroom Mode for group sessions. Saved Class Period results belong to the selected learner. Learning Reports and class-period summaries contain the nickname, grade or module, and practice results; an adult can choose to share them. Passport text is excluded. Working notes in Can we trust this? clear when you close the session and persist only if you explicitly save a Passport reflection. Temporary Classroom Mode also clears them on backgrounding, timeout or ending.</p>
+
+        <h2>Browser Learning and Projection</h2>
+        <p>The web Learn player stores progress in this browser's local storage. Anyone using that browser profile may see it. Its Teacher and Class Period tools save browser progress; they do not provide the iOS app's temporary Classroom Mode or multiple learner profiles. Clear progress in the player or clear this site's browser data when appropriate. The Can we trust this? projection page accepts no student input and writes no learning records. Downloaded copies work offline. Loading hosted pages contacts the website host, GitHub Pages, which may keep technical access logs under its own policies. Vizancia adds no analytics or tracking scripts.</p>
+
+        <h2>Backups, Reset, and Shared Copies</h2>
+        <p>Depending on device settings, Apple or computer backups may include app data. Reset All Progress clears
+            learning progress and AI Passport entries in the active profile; it keeps identity and preferences and does not remove backups,
+            recovery copies, or reports already shared. If a local database cannot open, Vizancia may preserve a
+            recovery copy on the device. Deleting the app removes its local app container, but does not erase external
+            backups or previously shared copies. Device owners and school administrators manage those copies separately.</p>
+
+        <h2>Support and External Services</h2>
+        <p>If you email support or choose to send feedback to us, we receive the message and any information you
+            include. Do not send student names, contact lists, or other sensitive records. App Store links, email,
+            sharing destinations, and device backup services operate under their own settings and policies.
+            Core learning does not require those services.</p>
+
+        <h2>No Chatbot Inside</h2>
+        <p>Every "AI" reply inside Vizancia's labs is a pre-written educational simulation. The app contains no chatbot
+            and sends nothing to any AI service.</p>
+
+        <h2>Optional Feedback Export</h2>
+        <p>Vizancia may let a learner mark an activity as too easy, just right, too hard, confusing, or helpful. These
+            responses are stored locally and are not sent to Vizancia automatically. Behind an adult gate, an adult can
+            choose to create a beta report and share it using Apple's system share sheet. The adult chooses the
+            destination and can cancel without sending anything. The report includes lesson results and grade bands, which may identify a learner in context. Preview the full report and follow your school's sharing rules. Please do not add a child's full name, contact details,
+            school, or other identifying information to a report.</p>
+
+        <h2>Children's Privacy</h2>
+        <p>The optional nickname and AI Passport reflections are stored on the device and are not automatically
+            sent to Vizancia. Avoid entering identifying or sensitive details. Adults should choose suitable activities
+            and supervise shared devices. There are no accounts, ads, analytics, tracking, public leaderboards,
+            or multiplayer features. The app works without learning data leaving the device.</p>
+
+        <h2>Notifications</h2>
+        <p>If you choose to enable daily reminder notifications, these are scheduled locally on your device using
+            Apple's notification system. No data is sent to any server.</p>
+
+        <h2>Changes to This Policy</h2>
+        <p>If we update this privacy policy, we will post the changes here with a new effective date.</p>
+
+        <h2>Contact</h2>
+        <p>If you have any questions about this privacy policy, you can reach us at:</p>
+        <p><strong>Email:</strong> info@vizancia.ca</p>
+
+        <footer>
+            &copy; 2026 Vizancia. All rights reserved. Built with ❤️ for AI learners everywhere.
+        </footer>
+    </div>
+</body>
+
+</html>

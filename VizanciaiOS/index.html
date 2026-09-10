@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vizancia — Learn AI the Fun Way</title>
+    <style>
+        :root {
+            --primary: #6C5CE7;
+            --secondary: #00CEC9;
+            --bg: #F8F9FE;
+            --text: #2D3436;
+            --muted: #636E72;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .tagline {
+            font-size: 18px;
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
+
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            margin-top: 24px;
+        }
+
+        .links a {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .links a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .links a.primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .links a.secondary {
+            background: #f0f0f5;
+            color: var(--text);
+        }
+
+        .contact {
+            margin-top: 32px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .contact a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧠 Vizancia</h1>
+        <p class="tagline">Learn AI the Fun Way</p>
+        <p>Vizancia is a free, offline-first educational app that teaches artificial intelligence through interactive
+            lessons, quizzes, and simulations. Independent learning is designed primarily for ages 10 and up; younger
+            learners can use selected activities with an adult.</p>
+
+        <div class="links">
+            <a href="trust/" class="primary">Can we trust this? — classroom project</a>
+            <a href="learn/" class="secondary">Open the browser learning path</a>
+            <a href="support.html" class="primary">🛟 Support</a>
+            <a href="privacy-policy.html" class="secondary">🔒 Privacy Policy</a>
+            <a href="terms-of-service.html" class="secondary">📄 Terms of Service</a>
+        </div>
+
+        <p class="contact">Questions? Contact us at <a href="mailto:info@vizancia.ca">info@vizancia.ca</a></p>
+
+        <footer>
+            &copy; 2026 Vizancia. All rights reserved.
+        </footer>
+    </div>
+</body>
+
+</html>
