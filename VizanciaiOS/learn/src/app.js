@@ -1,8 +1,8 @@
 /* Vizancia Learn web player.
  * Runs entirely in the browser. No account, no network call, no chatbot.
  * Progress lives in localStorage for this browser profile only.
- * Rules mirror the iOS app: difficulty by grade band, tier unlocks,
- * deterministic checkpoints, five-box Leitner review, lesson star formula.
+ * Shares authored content and core progression rules with iOS.
+ * Checkpoint order, browser storage and UI are platform-specific.
  */
 (function () {
   'use strict';
@@ -43,8 +43,8 @@
     }
     return a;
   }
-  // FNV-1a 64 + SplitMix64, matching LessonContentProvider so checkpoints
-  // assemble identically on every visit.
+  // FNV-1a 64 + SplitMix64 gives stable browser checkpoints. Native shuffling
+  // uses a different permutation; exact question order is not cross-platform.
   function fnv1a64(s) {
     let hash = 0xcbf29ce484222325n;
     for (const b of new TextEncoder().encode(s)) {
@@ -89,6 +89,7 @@
   const ICONS = { brain: '🧠', 'clock.arrow.circlepath': '🕰️', 'gearshape.2.fill': '⚙️', 'shield.fill': '🛡️', 'graduationcap.fill': '🎓', 'paintbrush.fill': '🎨', 'bubble.left.and.bubble.right.fill': '💬', 'scale.3d': '⚖️', 'briefcase.fill': '💼', 'heart.text.square.fill': '🩺', 'music.note': '🎵', 'book.closed.fill': '📖', 'sparkles': '✨', 'wrench.and.screwdriver.fill': '🔧', 'checkmark.seal.fill': '✅', 'hammer.fill': '🔨', 'checkmark.gearshape.fill': '🧪', 'cpu': '💻', 'lightbulb.fill': '💡', 'globe': '🌍', 'eye.fill': '👁️' };
   const catEmoji = (c) => ICONS[c.icon] || '📘';
   const BANDS = [
+    { id: 'earlyElementary', label: 'Grades K-2 guided', ceiling: 0 },
     { id: 'elementary', label: 'Grades 3-5', ceiling: 0 },
     { id: 'middle', label: 'Grades 6-8', ceiling: 1 },
     { id: 'high', label: 'Grades 9-12', ceiling: 2 },
@@ -116,16 +117,14 @@
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
   function resetProgress() { S = defaultState(); save(); }
 
-  const band = () => BANDS.find((b) => b.id === S.band) || BANDS[1];
+  const band = () => BANDS.find((b) => b.id === S.band) || BANDS[2];
   const ceiling = () => (S.teacherUnlock ? 2 : band().ceiling);
   function filterQuestions(qs) {
     const c = ceiling();
     const ok = qs.filter((q) => (DIFF_ORDER[q.difficulty] || 0) <= c);
-    if (ok.length) return ok;
-    const easiest = Math.min(...qs.map((q) => DIFF_ORDER[q.difficulty] || 0));
-    return qs.filter((q) => (DIFF_ORDER[q.difficulty] || 0) === easiest);
+    return ok;
   }
-  const stemFor = (q) => (ceiling() === 0 && q.simple ? q.simple : q.text);
+  const stemFor = (q) => (['earlyElementary', 'elementary'].includes(S.band) && q.simple ? q.simple : q.text);
   const isDone = (lessonId) => !!S.completed[lessonId];
   const completedIn = (catId) => CAT_BY_ID[catId].lessons.filter((l) => isDone(l.id)).length;
   const isCatComplete = (cat) => cat.lessons.every((l) => isDone(l.id));
@@ -140,6 +139,11 @@
       case 'completeTier2Minimum': return CATS.filter((c) => TIER_OF(c) === 2 && isCatComplete(c)).length < (u.value || 0);
       default: return false;
     }
+  }
+  function isLessonLocked(cat, lesson) {
+    if (S.teacherUnlock) return false;
+    const index = cat.lessons.findIndex((l) => l.id === lesson.id);
+    return isLocked(cat) || cat.lessons.slice(0, index).some((l) => !isDone(l.id));
   }
   function nextLesson() {
     for (const c of CATS) {
@@ -191,7 +195,7 @@
     // Explain items are self-rated, never scored, so checkpoints skip them (matches LessonContentProvider.checkpointPool).
     for (const l of covered) picked = picked.concat(shuffle(filterQuestions(l.questions.filter((q) => q.type !== 'explain')), rng).slice(0, 2));
     picked = shuffle(picked, rng).slice(0, final ? 10 : 8);
-    return { id, title: final ? 'Boss Challenge' : 'Checkpoint', description: final ? 'Everything in this module, mixed together. Show it is mastered!' : 'A quick mix of the lessons so far. Show what stuck!', questions: picked, cards: [], checkpoint: true, categoryId: cat.id };
+    return { id, title: final ? 'Boss Challenge' : 'Checkpoint', description: final ? 'Everything in this module, mixed together. Check your understanding.' : 'A quick mix of the lessons so far. Show what stuck!', questions: picked, cards: [], checkpoint: true, categoryId: cat.id };
   }
   function checkpointAvailable(cat, final) {
     const need = final ? cat.lessons : cat.lessons.slice(0, 3);
@@ -240,8 +244,37 @@
       case 'teacher': return viewTeacher(main);
       case 'class': return viewClass(main);
       case 'about': return viewAbout(main);
+      case 'practice': return viewPractice(main, r.arg);
       default: return viewPath(main);
     }
+  }
+
+  function viewPractice(main, id) {
+    const available = (DB.guidedPractices || []).filter((p) => p.stage === S.band && p.questions.every((q) => DIFF_ORDER[q.difficulty] <= ceiling()));
+    const root = h('div', { class: 'wrap narrow' }); main.append(root);
+    const practice = available.find((p) => p.id === id);
+    if (!practice) {
+      root.append(h('h1', null, 'Learn, check, build'), h('p', null, 'Short activities for your stage. No placement test, timer or written answer is required.'));
+      for (const p of available) root.append(h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, p.title), h('p', null, p.introduction), h('a', { class: 'btn primary', href: `#/practice/${p.id}` }, `Start ${p.questions.length} questions`)));
+      root.append(h('p', { class: 'muted' }, 'Answers are not saved and do not unlock chapters or certify a skill.'), h('a', { class: 'btn ghost', href: '#/path' }, 'Back to path')); return;
+    }
+    let index = 0, firstCorrect = 0;
+    function paint() {
+      root.replaceChildren();
+      if (index >= practice.questions.length) {
+        root.append(h('div', { class: 'card' }, h('h1', null, 'What will you try next?'), h('p', null, `${firstCorrect}/${practice.questions.length} first choices supported by the evidence`), h('p', null, 'Explain a decision to someone or try a new example independently. This is practice evidence, not a mastery rating.'), h('a', { class: 'btn primary', href: '#/practice' }, 'Back to activities'))); return;
+      }
+      const q = practice.questions[index];
+      root.append(h('h1', null, practice.title), h('p', null, `Question ${index + 1}/${practice.questions.length}`), h('div', { class: 'card', 'data-test': 'practice-evidence' }, practice.evidence[index]), h('h2', null, stemFor(q)));
+      const options = h('div', { class: 'actions', style: 'flex-direction:column;align-items:stretch' });
+      const feedback = h('div'); root.append(options, feedback, h('a', { class: 'btn ghost', href: '#/practice' }, 'Close activity'));
+      for (const option of shuffle(q.options)) options.append(h('button', { class: 'btn ghost', 'data-practice-opt': option, onclick: () => {
+        for (const b of options.querySelectorAll('button')) b.disabled = true;
+        const correct = option === q.correct; if (correct) firstCorrect++;
+        feedback.append(h('div', { class: 'card', role: 'status' }, h('h3', null, correct ? 'Supported by the evidence' : "Let's check that choice"), h('p', null, q.explanation), h('h3', null, 'Talk it through'), h('p', null, q.transfer)), h('button', { class: 'btn primary', 'data-test': 'practice-next', onclick: () => { index++; paint(); window.scrollTo(0, 0); } }, index + 1 === practice.questions.length ? 'Reflect on this practice' : 'Next question'));
+      } }, option));
+    }
+    paint();
   }
 
   function viewPath(main) {
@@ -258,6 +291,7 @@
     const due = dueCards().length;
     if (due) wrap.append(h('div', { class: 'card', style: 'margin-top:14px' }, h('div', { class: 'row' }, h('div', { class: 'grow' }, h('b', null, `${due} question${due === 1 ? '' : 's'} want a rematch`), h('div', { class: 'small muted' }, 'Spaced review keeps missed ideas from fading.')), h('a', { class: 'btn solid', href: '#/review' }, 'Review'))));
 
+    wrap.append(h('div', { class: 'card', style: 'margin:16px 0' }, h('h2', null, 'Learn, check, build'), h('p', null, 'Start with safety, check an AI answer, or practise a builder workflow for your stage.'), h('a', { class: 'btn solid', href: '#/practice' }, 'Quick practice')));
     let lastTier = 0;
     for (const cat of CATS) {
       const tier = TIER_OF(cat);
@@ -271,8 +305,9 @@
       cat.lessons.forEach((l, i) => {
         const done = isDone(l.id);
         const stars = done ? S.completed[l.id].stars : 0;
-        const node = h('a', { class: `node${done ? ' done' : ''}${locked ? ' locked' : ''}`, href: locked ? null : `#/lesson/${l.id}`, 'aria-disabled': locked ? 'true' : null, tabindex: locked ? -1 : null },
-          h('span', { class: 'dot', 'aria-hidden': 'true' }, locked ? '🔒' : done ? '✓' : String(i + 1)),
+        const lessonLocked = isLessonLocked(cat, l);
+        const node = h('a', { class: `node${done ? ' done' : ''}${lessonLocked ? ' locked' : ''}`, href: lessonLocked ? null : `#/lesson/${l.id}`, 'aria-disabled': lessonLocked ? 'true' : null, tabindex: lessonLocked ? -1 : null },
+          h('span', { class: 'dot', 'aria-hidden': 'true' }, lessonLocked ? '🔒' : done ? '✓' : String(i + 1)),
           h('span', null, h('div', { class: 'label' }, l.title), done ? h('div', { class: 'stars', 'aria-label': `${stars} stars` }, '★'.repeat(stars) + '☆'.repeat(3 - stars)) : h('div', { class: 'meta' }, `${filterQuestions(l.questions).length} questions`)));
         nodes.append(node);
         if (i === 2 && cat.lessons.length > 3) nodes.append(checkNode(cat, false, locked));
@@ -305,7 +340,7 @@
   function viewLesson(main, lessonId, opts) {
     const entry = LESSON_INDEX[lessonId];
     if (!entry) { main.append(h('div', { class: 'card' }, 'Lesson not found. ', h('a', { href: '#/path' }, 'Back to the path'))); return; }
-    if (isLocked(entry.category) && !(opts && opts.force)) { location.hash = '#/path'; return; }
+    if (isLessonLocked(entry.category, entry.lesson) && !(opts && opts.force)) { location.hash = '#/path'; return; }
     runSession(main, { id: entry.lesson.id, title: entry.lesson.title, description: entry.lesson.description, questions: filterQuestions(entry.lesson.questions), cards: entry.lesson.cards, categoryId: entry.category.id, checkpoint: false }, opts || {});
   }
   function viewCheckpoint(main, catId, final) {
@@ -390,17 +425,18 @@
     }
     function finish() {
       sess.phase = 'done';
-      const stars = starsEarned(sess.firstCorrect, scoredTotal);
-      let xp = sess.xp + XP.lessonBonus + (stars === 3 ? XP.perfectBonus : 0);
+      const earned = starsEarned(sess.firstCorrect, scoredTotal);
+      const repairedAll = sess.missed.length > 0 && sess.repairCorrect === sess.missed.length;
+      const stars = repairedAll ? Math.max(2, earned) : earned;
+      let xp = sess.xp + XP.lessonBonus + (sess.firstCorrect + sess.repairCorrect === scoredTotal ? XP.perfectBonus : 0);
       if (lesson.checkpoint) {
         const prev = S.checkpoints[lesson.id];
         S.checkpoints[lesson.id] = { correct: Math.max(sess.firstCorrect, prev ? prev.correct : 0), total: scoredTotal, date: dateKey() };
-        if (prev) xp = Math.max(0, xp - XP.lessonBonus); // no repeat bonus
+        // Native practice pays the same completion bonus on replay.
       } else {
         const prev = S.completed[lesson.id];
-        if (prev) xp = Math.round(xp * 0.5); // replay pays half
         S.completed[lesson.id] = { stars: Math.max(stars, prev ? prev.stars : 0), correct: sess.firstCorrect, total: scoredTotal, date: dateKey() };
-        for (const b of cat.bigIdeas) S.skill[b] = (S.skill[b] || 0) + 10 + sess.firstCorrect;
+        for (const b of cat.bigIdeas) S.skill[b] = (S.skill[b] || 0) + (sess.firstCorrect + sess.repairCorrect) * 4 + (sess.firstCorrect + sess.repairCorrect === scoredTotal ? 10 : 0);
       }
       recordActivity(xp);
       sess.finalXP = xp; sess.stars = stars;
@@ -663,14 +699,14 @@
       h('div', { class: 'card' }, h('h2', null, 'Modules and standards'), h('div', { style: 'overflow-x:auto' }, h('table', null, h('thead', null, h('tr', null, h('th', null, 'Tier'), h('th', null, 'Module'), h('th', null, 'Lessons'), h('th', null, 'AI4K12 Big Ideas'))), h('tbody', null, CATS.map((c) => h('tr', null, h('td', null, TIER_NAMES[TIER_OF(c)]), h('td', null, h('b', null, c.name), h('div', { class: 'small muted' }, c.lessons.map((l) => l.title).join(' · '))), h('td', { class: 'num' }, String(c.lessons.length)), h('td', null, c.bigIdeas.map((b) => DB.bigIdeas[b]).join(', ')))))))));
     const right = h('aside', null,
       h('div', { class: 'card' }, h('h3', null, 'Privacy in one paragraph'), h('p', { class: 'small' }, 'Vizancia Learn is a static page. It makes no network requests after it loads, has no accounts, and stores progress only in the browser that used it. There is no chatbot and no AI service behind it; every simulated reply is written by people. Follow school approval, privacy and device rules before classroom use. This browser player saves progress; it does not provide the iOS app’s temporary Classroom Mode. Anyone using this browser profile may read the records. Hosted page access contacts the website host.')),
-      h('div', { class: 'card' }, h('h3', null, 'Grade bands'), h('p', { class: 'small' }, 'Grades 3-5 see beginner questions and shorter wording. Grades 6-8 add intermediate questions. Grades 9-12 and adults see everything. Teachers can unlock all content in Settings on any device.')),
+      h('div', { class: 'card' }, h('h3', null, 'Grade bands'), h('p', { class: 'small' }, 'Grades K-2 and 3-5 have distinct quick practice activities and shorter lesson wording. Grades 6-8 add intermediate questions. Grades 9-12 and adults see everything. Teachers can unlock all content in Settings on any device.')),
       h('div', { class: 'card' }, h('h3', null, 'Also available'), h('p', { class: 'small' }, 'The iPad and iPhone app adds Prompt Lab, Train the Robot, AI Startup, and the Campus world. ', h('a', { href: '../trust/' }, 'Can we trust this? classroom project'))));
     wrap.append(left, right);
   }
   function viewAbout(main) {
     main.append(h('div', { class: 'wrap' }, h('div', { class: 'card' }, h('h1', null, 'About Vizancia Learn'),
       h('p', null, 'Vizancia teaches learners about AI. It does not put an AI friend in their pocket. There is no chatbot or AI companion here; every simulated reply is written by people for learning.'),
-      h('p', null, `This web player carries the same ${CATS.reduce((n, c) => n + c.lessons.length, 0)} lessons and ${Object.keys(QUESTION_INDEX).length} questions as the iOS app, with the same grade-band rules, tier unlocks, deterministic checkpoints, and spaced review. It runs entirely in your browser and stores progress only on this device.`),
+      h('p', null, `This web player carries the same ${CATS.reduce((n, c) => n + c.lessons.length, 0)} lessons and ${Object.keys(QUESTION_INDEX).length} questions as the iOS app, with grade-band filtering, tier unlocks, stable browser checkpoints, and spaced review. Checkpoint permutations and browser storage differ from the native app. It runs entirely in your browser and stores progress only on this device.`),
       h('p', null, 'The iPad and iPhone app adds Prompt Lab, Train the Robot, AI Startup, and the Campus world.'),
       h('p', { class: 'small muted' }, `Version ${APP_VERSION} · `, h('a', { href: '../privacy-policy.html' }, 'Privacy policy'), ' · ', h('a', { href: '../support.html' }, 'Support')))));
   }
@@ -746,6 +782,15 @@
       // every question renders without throwing
       let rendered = 0;
       for (const id of Object.keys(QUESTION_INDEX)) { const card = h('div'); buildWidget(QUESTION_INDEX[id].question, card); if (card.querySelector('.stem')) rendered++; }
+      const beforePractice = JSON.stringify(S);
+      location.hash = '#/practice/route_middle_check'; render(); await tick();
+      ok('practice exposes evidence', !!$('[data-test="practice-evidence"]'));
+      for (const q of DB.guidedPractices.find(p => p.id === 'route_middle_check').questions) {
+        $('[data-practice-opt="' + CSS.escape(q.correct) + '"]').click(); await tick();
+        $('[data-test="practice-next"]').click(); await tick();
+      }
+      ok('practice reaches reflection', $('#main').textContent.includes('What will you try next?'));
+      ok('practice changes no learning records or rewards', beforePractice === JSON.stringify(S));
       ok('all questions render', rendered === Object.keys(QUESTION_INDEX).length);
       const explainIds = Object.keys(QUESTION_INDEX).filter((id) => QUESTION_INDEX[id].question.type === 'explain');
       ok('explain items have model answer and rubric', explainIds.every((id) => QUESTION_INDEX[id].question.correct && QUESTION_INDEX[id].question.options.length >= 2));
