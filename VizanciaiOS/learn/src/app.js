@@ -259,10 +259,11 @@
       root.append(h('p', { class: 'muted' }, 'Answers are not saved and do not unlock chapters or certify a skill.'), h('a', { class: 'btn ghost', href: '#/path' }, 'Back to path')); return;
     }
     let index = 0, firstCorrect = 0;
+    const guided = ['earlyElementary', 'elementary'].includes(S.band);
     function paint() {
       root.replaceChildren();
       if (index >= practice.questions.length) {
-        root.append(h('div', { class: 'card' }, h('h1', null, 'What will you try next?'), h('p', null, `${firstCorrect}/${practice.questions.length} first choices supported by the evidence`), h('p', null, 'Explain a decision to someone or try a new example independently. This is practice evidence, not a mastery rating.'), h('a', { class: 'btn primary', href: '#/practice' }, 'Back to activities'))); return;
+        root.append(h('div', { class: 'card' }, h('h1', null, guided ? 'What did you learn?' : 'What will you try next?'), h('p', null, `${firstCorrect}/${practice.questions.length} ${guided ? 'choices that fit the situation' : 'first choices supported by the evidence'}`), h('p', null, guided ? 'Tell a grown-up what you would do next time. You can practise again together.' : 'Explain a decision to someone or try a new example independently. This is practice evidence, not a mastery rating.'), h('a', { class: 'btn primary', href: '#/practice' }, 'Back to activities'))); return;
       }
       const q = practice.questions[index];
       root.append(h('h1', null, practice.title), h('p', null, `Question ${index + 1}/${practice.questions.length}`), h('div', { class: 'card', 'data-test': 'practice-evidence' }, practice.evidence[index]), h('h2', null, stemFor(q)));
@@ -271,7 +272,7 @@
       for (const option of shuffle(q.options)) options.append(h('button', { class: 'btn ghost', 'data-practice-opt': option, onclick: () => {
         for (const b of options.querySelectorAll('button')) b.disabled = true;
         const correct = option === q.correct; if (correct) firstCorrect++;
-        feedback.append(h('div', { class: 'card', role: 'status' }, h('h3', null, correct ? 'Supported by the evidence' : "Let's check that choice"), h('p', null, q.explanation), h('h3', null, 'Talk it through'), h('p', null, q.transfer)), h('button', { class: 'btn primary', 'data-test': 'practice-next', onclick: () => { index++; paint(); window.scrollTo(0, 0); } }, index + 1 === practice.questions.length ? 'Reflect on this practice' : 'Next question'));
+        feedback.append(h('div', { class: 'card', role: 'status' }, h('h3', null, correct ? (guided ? 'Good choice' : 'Supported by the evidence') : "Let's check that choice"), h('p', null, q.explanation), h('h3', null, guided ? 'Tell a grown-up' : 'Talk it through'), h('p', null, q.transfer)), h('button', { class: 'btn primary', 'data-test': 'practice-next', onclick: () => { index++; paint(); window.scrollTo(0, 0); } }, index + 1 === practice.questions.length ? 'Reflect on this practice' : 'Next question'));
       } }, option));
     }
     paint();
