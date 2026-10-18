@@ -107,7 +107,7 @@
     v: 1, name: '', band: 'middle', teacherUnlock: false, xp: 0,
     streak: 0, lastActive: null, activeDays: [],
     completed: {}, checkpoints: {}, categoryStats: {}, skill: {}, leitner: {}, missed: [],
-    tickets: [], createdAt: dateKey(),
+    tickets: [], explored: [], createdAt: dateKey(),
   });
   let S = load();
   function load() {
@@ -116,6 +116,18 @@
   }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
   function resetProgress() { S = defaultState(); save(); }
+  function saveExploration(id) {
+    const previous = S.explored.slice();
+    if (!S.explored.includes(id)) S.explored.push(id);
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(S));
+      return true;
+    } catch (e) {
+      S.explored = previous;
+      toast('Exploration could not be saved. Browser storage is unavailable. Try again or close without saving.');
+      return false;
+    }
+  }
 
   const band = () => BANDS.find((b) => b.id === S.band) || BANDS[2];
   const ceiling = () => (S.teacherUnlock ? 2 : band().ceiling);
@@ -245,25 +257,32 @@
       case 'class': return viewClass(main);
       case 'about': return viewAbout(main);
       case 'practice': return viewPractice(main, r.arg);
+      case 'workshop': return viewWorkshop(main);
+      case 'neuron': return viewNeuron(main);
       default: return viewPath(main);
     }
   }
 
   function viewPractice(main, id) {
-    const available = (DB.guidedPractices || []).filter((p) => p.stage === S.band && p.questions.every((q) => DIFF_ORDER[q.difficulty] <= ceiling()));
+    const priority = {safe: 0, foundation: 1, check: 2, build: 3};
+    const available = (DB.guidedPractices || []).filter((p) => p.stage === S.band && p.questions.every((q) => DIFF_ORDER[q.difficulty] <= ceiling())).sort((a,b) => priority[a.goal] - priority[b.goal]);
     const root = h('div', { class: 'wrap narrow' }); main.append(root);
     const practice = available.find((p) => p.id === id);
     if (!practice) {
       root.append(h('h1', null, 'Learn, check, build'), h('p', null, 'Short activities for your stage. No placement test, timer or written answer is required.'));
-      for (const p of available) root.append(h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, p.title), h('p', null, p.introduction), h('a', { class: 'btn primary', href: `#/practice/${p.id}` }, `Start ${p.questions.length} questions`)));
-      root.append(h('p', { class: 'muted' }, 'Answers are not saved and do not unlock chapters or certify a skill.'), h('a', { class: 'btn ghost', href: '#/path' }, 'Back to path')); return;
+      const next = available.find(p => !S.explored.includes(p.id));
+      if (next) root.append(h('p', null, `Next to explore: ${next.title}`));
+      for (const p of available) root.append(h('div', { class: 'card', style: 'margin-bottom:16px' }, h('h2', null, p.title), S.explored.includes(p.id) ? h('p', {class:'muted'}, 'Explored') : null, h('p', null, p.introduction), h('a', { class: 'btn primary', href: `#/practice/${p.id}` }, `Start ${p.questions.length} questions`)));
+      if (['high','adult'].includes(S.band) && ceiling() >= 1) root.append(h('a', {class:'btn primary', href:'#/workshop'}, 'Product workshop: inspect, test and release'));
+      root.append(h('a', {class:'btn ghost',href:'#/neuron'}, "Explore a model's guesses"));
+      root.append(h('p', { class: 'muted' }, 'Only activities you mark explored are saved locally. Answers stay in this session. No XP, chapter completion or mastery is awarded.'), h('a', { class: 'btn ghost', href: '#/path' }, 'Back to path')); return;
     }
     let index = 0, firstCorrect = 0;
     const guided = ['earlyElementary', 'elementary'].includes(S.band);
     function paint() {
       root.replaceChildren();
       if (index >= practice.questions.length) {
-        root.append(h('div', { class: 'card' }, h('h1', null, guided ? 'What did you learn?' : 'What will you try next?'), h('p', null, `${firstCorrect}/${practice.questions.length} ${guided ? 'choices that fit the situation' : 'first choices supported by the evidence'}`), h('p', null, guided ? 'Tell a grown-up what you would do next time. You can practise again together.' : 'Explain a decision to someone or try a new example independently. This is practice evidence, not a mastery rating.'), h('a', { class: 'btn primary', href: '#/practice' }, 'Back to activities'))); return;
+        root.append(h('div', { class: 'card' }, h('h1', null, guided ? 'What did you learn?' : 'What will you try next?'), h('p', null, `${firstCorrect}/${practice.questions.length} ${guided ? 'choices that fit the situation' : 'first choices supported by the evidence'}`), h('p', null, guided ? 'Tell a grown-up what you would do next time. You can practise again together.' : 'Explain a decision to someone or try a new example independently. This is practice evidence, not a mastery rating.'), h('button', { class: 'btn primary', 'data-test':'practice-save', onclick:()=>{ if (saveExploration(practice.id)) location.hash='#/practice'; } }, 'Mark explored and return'))); return;
       }
       const q = practice.questions[index];
       root.append(h('h1', null, practice.title), h('p', null, `Question ${index + 1}/${practice.questions.length}`), h('div', { class: 'card', 'data-test': 'practice-evidence' }, practice.evidence[index]), h('h2', null, stemFor(q)));
@@ -276,6 +295,114 @@
       } }, option));
     }
     paint();
+  }
+
+  function trainToyNeuron(a, b) {
+    for (const e of DB.toyNeuron.examples) {
+      const guess = (e.round ? a : 0) + (e.red ? b : 0) >= 3;
+      if (guess !== e.apple) {
+        const correction = e.apple ? 1 : -1;
+        if (e.round) a = Math.min(3, Math.max(0, a + correction));
+        if (e.red) b = Math.min(3, Math.max(0, b + correction));
+      }
+    }
+    return [a,b];
+  }
+  function viewNeuron(main) {
+    const c = DB.toyNeuron, guided = ['earlyElementary','elementary'].includes(S.band);
+    let a=2, b=1, trained=false;
+    const root=h('div',{class:'wrap narrow'}); main.append(root);
+    const output=h('div',{'aria-live':'polite'});
+    const round=h('input',{type:'checkbox',checked:true,onchange:()=>output.replaceChildren()});
+    const red=h('input',{type:'checkbox',checked:true,onchange:()=>output.replaceChildren()});
+    const weights=h('p');
+    const training=h('div',{'aria-live':'polite'});
+    function refresh() {
+      weights.textContent=guided ? 'Changing importance changes how much each clue matters.' : 'Roundness weight: '+a+'. Redness weight: '+b+'. Threshold: 3.';
+      output.replaceChildren();
+      if (trained) {
+        const sample=c.heldOut, guess=(sample.round?a:0)+(sample.red?b:0)>=3;
+        training.replaceChildren(h('p',null,c.trainingExplanation),h('h2',null,'Unseen object: '+sample.name),
+          h('p',null,guess ? 'The model guesses apple. This is a false alarm: the green ball is not an apple.' : 'The model rejects the ball. Check whether it still recognizes the green apple.'),
+          h('p',null,'The green apple and green ball share these two clues. What additional evidence would help distinguish them?'));
+      }
+    }
+    function predict(prediction) {
+      const actual=(round.checked?a:0)+(red.checked?b:0)>=3;
+      output.replaceChildren(h('h2',null,'Model output: '+(actual?'apple':'not apple')),
+        h('p',null,prediction===actual ? 'Your prediction matched the model. Was the model right about the real object?' : 'The model behaved differently. Which clue changed its guess?'));
+    }
+    root.append(h('h1',null,"Explore a model's guesses"),h('p',null,c.introduction),
+      h('label',{class:'row',style:'min-height:48px'},round,'The object is round'),
+      h('label',{class:'row',style:'min-height:48px'},red,'The object is red'),weights,
+      h('button',{class:'btn ghost',onclick:()=>{a=Math.min(3,a+1);refresh();}},'Give roundness more importance'),
+      h('button',{class:'btn ghost',onclick:()=>{a=2;b=1;trained=false;training.replaceChildren();refresh();}},'Reset the model'),
+      h('h2',null,'Predict before revealing the model output'),
+      h('button',{class:'btn ghost',onclick:()=>predict(true)},'It will guess apple'),
+      h('button',{class:'btn ghost',onclick:()=>predict(false)},'It will not guess apple'),output,
+      h('h2',null,'Learn from examples, then test something new'),
+      ...c.examples.map(e=>h('p',null,e.name+': '+(e.apple?'apple':'not apple'))),
+      h('button',{class:'btn primary','data-test':'neuron-train',onclick:()=>{[a,b]=trainToyNeuron(a,b);trained=true;refresh();}},'Run one training pass'),
+      training,h('p',{class:'muted'},c.disclosure),h('a',{class:'btn ghost',href:'#/practice'},'Back to activities'));
+    refresh();
+  }
+
+  function workshopResults(p) {
+    const fixture = DB.productWorkshop;
+    const notice = p.current ? fixture.currentNotice : fixture.cachedNotice;
+    const saturday = notice.match(/Saturday (\d\d:\d\d)/)[1];
+    const sunday = /Sunday closed/i.test(notice) ? 'Closed' : notice.match(/Sunday (\d\d:\d\d)/)[1];
+    const answer = day => p.lookup ? ({Saturday:saturday, Sunday:sunday}[day] || 'Not in supplied evidence') : saturday;
+    const actual = {hours:answer('Saturday'), closed:answer('Sunday'), missing:answer('Tuesday'),
+      private:p.scope ? 'Blocked':'Allowed', send:p.send ? 'Allowed':'Blocked', secret:p.secret ? 'Present':'Absent'};
+    return fixture.tests.map(t => ({...t, actual:actual[t.id], passed:actual[t.id] === t.expected}));
+  }
+
+  function viewWorkshop(main) {
+    if (!['high','adult'].includes(S.band) || ceiling() < 1) return viewPractice(main);
+    const c = DB.productWorkshop, p = {current:false, scope:false, send:true, lookup:false, secret:true};
+    let evaluated = null;
+    const root = h('div', {class:'wrap narrow'}); main.append(root);
+    const diff = h('pre', {class:'card', style:'white-space:pre-wrap;overflow-wrap:anywhere'});
+    const results = h('div', {'aria-live':'polite'}), decision = h('div', {'aria-live':'polite'});
+    const pilot = h('button', {class:'btn primary', disabled:true, onclick:()=>decide('The fixtures pass. Name the accountable reviewer, extra held-out tests and a rollback trigger. Nothing has been deployed.')}, 'Propose a limited pilot');
+    function refresh() {
+      diff.textContent = 'branch: agent/library-hours\ncommit: Check the requested day and limit access\n\n- return cachedNotice["Saturday"]\n'
+        + (p.lookup ? '+ return notice[day] ?? noEvidence' : '+ return notice["Saturday"] ?? noEvidence // ignores day')
+        + '\n' + (p.secret ? '+ let credential = "DEMO_KEY_NOT_A_SECRET" // planted example' : '+ // credentials stay outside tracked source');
+      pilot.disabled = evaluated !== JSON.stringify(p) || !workshopResults(p).every(t=>t.passed);
+      decision.replaceChildren();
+      if (evaluated && evaluated !== JSON.stringify(p)) results.replaceChildren(h('p', null, 'Proposal changed. Run the checks again.'));
+    }
+    function toggle(key, title) {
+      const input = h('input', {type:'checkbox', 'data-workshop':key, onchange:()=>{p[key]=input.checked;refresh();}});
+      input.checked=p[key]; return h('label', {class:'row', style:'min-height:48px'}, input, title);
+    }
+    function decide(text) {
+      decision.replaceChildren(h('p',null,text),h('button',{class:'btn primary',onclick:()=>{
+        if (saveExploration('product_workshop')) location.hash='#/practice';
+      }},'Mark explored and return'));
+    }
+    const run = h('button',{class:'btn primary','data-test':'workshop-run',onclick:()=>{
+      evaluated=JSON.stringify(p); refresh();
+      results.replaceChildren(h('h2',null,'Results for the current proposal'),...workshopResults(p).map(t=>
+        h('div',{class:'card'},h('h3',null,(t.passed?'Pass':'Check')+': '+t.title),
+          h('p',null,'Expected: '+t.expected),h('p',null,'Actual: '+t.actual))));
+    }},'Run project tests');
+    root.append(h('h1',null,'Product workshop'),h('p',null,c.brief),
+      h('details',null,h('summary',null,'Map the system'),...c.components.map(x=>h('p',null,x))),
+      h('h2',null,'1. Inspect the evidence'),h('p',null,c.currentNotice),h('p',null,c.cachedNotice),toggle('current','Use the current notice'),
+      h('h2',null,'2. Limit tool access'),h('div',{class:'card'},c.injectedDocument),toggle('scope','Read only the selected notice'),toggle('send','Allow the tool to send messages'),
+      h('h2',null,'3. Review a repository change'),h('p',null,'Inspect the planted mistakes. The demo credential is fictional.'),diff,
+      toggle('lookup','Look up the requested day; refuse missing evidence'),toggle('secret','Include the demo credential in tracked code'),
+      h('h2',null,'4. Run the checks'),run,results,
+      h('h2',null,'5. Compare the complete workflow'),h('p',null,c.modelNote),
+      h('p',null,'Manual: '+c.manualMinutes+' minutes. Assisted before corrections: '+c.assistedMinutesBeforeCorrections+' minutes.'),
+      h('h2',null,'6. Make a release decision'),h('p',null,c.releaseNote),
+      h('button',{class:'btn ghost',onclick:()=>decide('A hold is a valid decision. Name the remaining failure or uncertainty and the evidence needed to resolve it.')},'Hold and investigate'),
+      pilot,decision,h('p',{class:'muted'},'Only an explored-activity marker is saved locally. No answers, code or results leave this session.'),
+      h('a',{class:'btn ghost',href:'#/practice'},'Close project'));
+    refresh();
   }
 
   function viewPath(main) {
@@ -792,6 +919,20 @@
       }
       ok('practice reaches reflection', $('#main').textContent.includes('What will you try next?'));
       ok('practice changes no learning records or rewards', beforePractice === JSON.stringify(S));
+      $('[data-test="practice-save"]').click(); await tick();
+      const afterExploration = JSON.parse(JSON.stringify(S)); afterExploration.explored = [];
+      ok('exploration saves only a local activity marker', S.explored.includes('route_middle_check') && beforePractice === JSON.stringify(afterExploration));
+      const initialProject = {current:false,scope:false,send:true,lookup:false,secret:true};
+      ok('workshop catches initial failures', workshopResults(initialProject).some(t=>!t.passed));
+      ok('workshop patched fixture passes', workshopResults({current:true,scope:true,send:false,lookup:true,secret:false}).every(t=>t.passed));
+      ok('workshop sending permission independently fails', workshopResults({current:true,scope:true,send:true,lookup:true,secret:false}).some(t=>!t.passed));
+      const [trainedA,trainedB]=trainToyNeuron(2,1);
+      ok('toy neuron trains on the authored examples', DB.toyNeuron.examples.every(e=>((e.round?trainedA:0)+(e.red?trainedB:0)>=3)===e.apple));
+      const unseen=DB.toyNeuron.heldOut;
+      ok('toy neuron exposes held-out false alarm', ((unseen.round?trainedA:0)+(unseen.red?trainedB:0)>=3)!==unseen.apple);
+      const beforeModel=JSON.stringify(S);
+      location.hash='#/neuron';render();await tick();$('[data-test="neuron-train"]').click();await tick();
+      ok('model experiment exposes unseen outcome without saving', $('#main').textContent.includes('false alarm') && beforeModel===JSON.stringify(S));
       ok('all questions render', rendered === Object.keys(QUESTION_INDEX).length);
       const explainIds = Object.keys(QUESTION_INDEX).filter((id) => QUESTION_INDEX[id].question.type === 'explain');
       ok('explain items have model answer and rubric', explainIds.every((id) => QUESTION_INDEX[id].question.correct && QUESTION_INDEX[id].question.options.length >= 2));
